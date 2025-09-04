@@ -19,18 +19,18 @@ load_dotenv()
 
 # Load configuration from external JSON file
 def load_config():
-    """Load configuration from config.json file"""
-    config_path = "config.json"
+    """Load configuration from config_obsidian.json file"""
+    config_path = "config_obsidian.json"
     try:
         with open(config_path, 'r') as f:
             config = json.load(f)
-        print("✅ Configuration loaded from config.json")
+        print("✅ Configuration loaded from config_obsidian.json")
         return config
     except FileNotFoundError:
         print(f"❌ Config file not found: {config_path}")
         raise
     except json.JSONDecodeError as e:
-        print(f"❌ Error parsing config.json: {e}")
+        print(f"❌ Error parsing config_obsidian.json: {e}")
         raise
 
 
@@ -62,10 +62,14 @@ def initialize_components():
     )
     print("✅ Retriever Manager initialized")
     
-    # Initialize retriever
+    # Initialize retriever - check which source to use
+    pdf_path = CONFIG.get("pdf", {}).get("path")
+    obsidian_path = CONFIG.get("obsidian", {}).get("path")
+    
     try:
         retriever = retriever_manager.initialize_retriever(
-            pdf_path=CONFIG["pdf"]["path"],
+            pdf_path=pdf_path,
+            obsidian_path=obsidian_path,
             search_type=CONFIG["retriever"]["search_type"],
             k=CONFIG["retriever"]["k"]
         )

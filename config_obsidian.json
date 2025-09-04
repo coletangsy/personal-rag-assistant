@@ -5,11 +5,11 @@
     },
     "vector_store": {
         "persist_directory": "/Volumes/Kingston_External/Github/personal-rag-assistant/data/",
-        "collection_name": "harry_potter",
+        "collection_name": "obsidian",
         "embedding_model": "models/gemini-embedding-001"
     },
     "pdf": {
-        "path": "data/harrypotter.pdf"
+        "path": ""
     },
     "obsidian": {
         "path": "/Volumes/Kingston_External/Github/obsidian_warehouse"
