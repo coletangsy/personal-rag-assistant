@@ -19,18 +19,18 @@ load_dotenv()
 
 # Load configuration from external JSON file
 def load_config():
-    """Load configuration from config_obsidian.json file"""
-    config_path = "config_obsidian.json"
+    """Load configuration from config.json file"""
+    config_path = "config.json"
     try:
         with open(config_path, 'r') as f:
             config = json.load(f)
-        print("✅ Configuration loaded from config_obsidian.json")
+        print("✅ Configuration loaded from config.json")
         return config
     except FileNotFoundError:
         print(f"❌ Config file not found: {config_path}")
         raise
     except json.JSONDecodeError as e:
-        print(f"❌ Error parsing config_obsidian.json: {e}")
+        print(f"❌ Error parsing config.json: {e}")
         raise
 
 
