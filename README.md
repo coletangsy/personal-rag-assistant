@@ -16,6 +16,12 @@ A sophisticated AI-powered personal assistant that combines Retrieval-Augmented 
 - **Error Handling**: Robust error recovery and graceful degradation
 - **Progress Indicators**: Real-time status updates during processing
 
+## 📹 Demo
+
+https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
+
+
+
 ## 🚀 Quick Start
 
 ### Prerequisites
