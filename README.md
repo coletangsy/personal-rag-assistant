@@ -53,10 +53,39 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
 4. **Set up your environment**
    ```env
    GOOGLE_API_KEY=your_google_api_key_here
-   OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
    ```
 
-5. **Run the application**
+5. **Set up your config**
+   ```config.json
+   {
+    "llm": {
+        "model": "gemini-2.5-flash",
+        "temperature": 0
+    },
+    "vector_store": {
+        "persist_directory": "your_own_store_path",
+        "collection_name": "obsidian",
+        "embedding_model": "models/gemini-embedding-001"
+    },
+    "pdf": {
+        "path": ""
+    },
+    "obsidian": {
+        "path": "your_obsidian_vault_path"
+    },
+    "retriever": {
+        "search_type": "similarity",
+        "k": 5
+    },
+    "text_splitter": {
+        "chunk_size": 1000,
+        "chunk_overlap": 200
+    },
+    "system_prompt": "You are an intelligent AI assistant who ...
+   }
+   ```
+
+6. **Run the application**
    ```bash
    uv run python main.py
    ```
@@ -69,6 +98,7 @@ personal-assistant-bot/
 ├── retriever_manager.py  # RAG database and document processing
 ├── pyproject.toml        # Project dependencies
 ├── .env                  # Environment variables (gitignored)
+├── config.json           # Configuration leveraged (gitignored)
 ├── .gitignore            # Git ignore rules
 └── chroma.sqlite3/       # Chroma vector store (gitignored)
 ```
