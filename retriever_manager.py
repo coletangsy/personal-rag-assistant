@@ -1,0 +1,149 @@
+import chromadb
+import os
+import json
+from typing import List, Optional
+
+# LangChain imports
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_core.tools import tool
+
+
+class RetrieverManager:
+    def __init__(self, persist_directory: str, collection_name: str, embedding_model: str = "models/gemini-embedding-001"):
+        self.persist_directory = persist_directory
+        self.collection_name = collection_name
+        self.embeddings = GoogleGenerativeAIEmbeddings(model=embedding_model)
+        self.vectorstore = None
+        self.retriever = None
+        
+        # Load text splitter configuration from config.json
+        self.text_splitter_config = self._load_text_splitter_config()
+        
+
+    def _load_text_splitter_config(self):
+        """Load text splitter configuration from config.json"""
+        try:
+            with open("config.json", 'r') as f:
+                config = json.load(f)
+            return config.get("text_splitter", {})
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Default values if config file is not available
+            return {"chunk_size": 1000, "chunk_overlap": 200}
+        
+
+    def check_collection_exists(self) -> bool:
+        """Check if a ChromaDB collection already exists"""
+        try:
+            client = chromadb.PersistentClient(path=self.persist_directory)
+            existing_collections = client.list_collections()
+            return any(collection.name == self.collection_name for collection in existing_collections)
+        except Exception as e:
+            print(f"[ERROR] Failed to check collections: {e}")
+            return False
+    
+
+    def create_collection_from_pdf(self, pdf_path: str) -> bool:
+        """Create a new collection from a PDF file"""
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+        
+        try:
+            pdf_loader = PyPDFLoader(pdf_path)
+            pages = pdf_loader.load()
+            print(f"[STATUS] PDF has been loaded, total {len(pages)} pages.")
+            
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=self.text_splitter_config.get("chunk_size", 1000),
+                chunk_overlap=self.text_splitter_config.get("chunk_overlap", 200)
+            )
+            
+            page_split = text_splitter.split_documents(pages)
+            
+            if not os.path.exists(self.persist_directory):
+                os.makedirs(self.persist_directory)
+            
+            self.vectorstore = Chroma.from_documents(
+                documents=page_split,
+                embedding=self.embeddings, 
+                persist_directory=self.persist_directory,
+                collection_name=self.collection_name
+            )
+            print(f"[STATUS] New ChromaDB collection '{self.collection_name}' has been created.")
+            return True
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to create collection from PDF: {e}")
+            return False
+    
+
+    def load_existing_collection(self) -> bool:
+        """Load an existing ChromaDB collection"""
+        try:
+            self.vectorstore = Chroma(
+                persist_directory=self.persist_directory,
+                embedding_function=self.embeddings,
+                collection_name=self.collection_name
+            )
+            print(f"[STATUS] Existing ChromaDB collection '{self.collection_name}' loaded successfully.")
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to load existing collection: {e}")
+            return False
+    
+
+    def setup_retriever(self, search_type: str = "similarity", k: int = 5):
+        """Setup the retriever with given parameters"""
+        if self.vectorstore is None:
+            raise RuntimeError("Vector store not initialized")
+        
+        self.retriever = self.vectorstore.as_retriever(
+            search_type=search_type,
+            search_kwargs={"k": k}
+        )
+        print(f"[STATUS] Retriever initialized with search_type='{search_type}' and k={k}")
+    
+
+    def initialize_retriever(self, pdf_path: Optional[str] = None, search_type: str = "similarity", k: int = 5):
+        """Initialize the retriever, creating collection if needed"""
+        collection_exists = self.check_collection_exists()
+        
+        if collection_exists:
+            print(f"[STATUS] Collection '{self.collection_name}' exists. Loading...")
+            if self.load_existing_collection():
+                self.setup_retriever(search_type, k)
+            else:
+                raise RuntimeError("Failed to load existing collection")
+        else:
+            print(f"[STATUS] Collection '{self.collection_name}' not found. Creating new collection...")
+            if pdf_path and self.create_collection_from_pdf(pdf_path):
+                self.setup_retriever(search_type, k)
+            else:
+                raise RuntimeError("PDF path required to create new collection")
+        
+        return self.retriever
+    
+
+    def get_retriever_tool(self):
+        """Create and return the retriever tool"""
+        if self.retriever is None:
+            raise RuntimeError("Retriever not initialized. Call initialize_retriever() first.")
+        
+        
+        @tool
+        def retriever_tool(query: str) -> str:
+            """This tool searches and returns information from the database"""
+            docs = self.retriever.invoke(query)
+            
+            if not docs:
+                return "No relevant information found in the database"
+            
+            results = []
+            for i, doc in enumerate(docs):
+                results.append(f"Document {i+1}:\n{doc.page_content}")
+            
+            return "\n\n".join(results)
+        
+        return retriever_tool
