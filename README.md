@@ -44,19 +44,13 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
    uv sync
    ```
 
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and paths
-   ```
-
-4. **Set up your environment**
+3. **Set up your environment**
    ```env
    GOOGLE_API_KEY=your_google_api_key_here
    ```
 
-5. **Set up your config**
-   ```config.json
+4. **Set up your config**
+   ```json
    {
     "llm": {
         "model": "gemini-2.5-flash",
@@ -81,11 +75,11 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
         "chunk_size": 1000,
         "chunk_overlap": 200
     },
-    "system_prompt": "You are an intelligent AI assistant who ...
+    "system_prompt": "You are an intelligent AI assistant who ..."
    }
    ```
 
-6. **Run the application**
+5. **Run the application**
    ```bash
    uv run python main.py
    ```
@@ -98,7 +92,7 @@ personal-assistant-bot/
 ├── retriever_manager.py  # RAG database and document processing
 ├── pyproject.toml        # Project dependencies
 ├── .env                  # Environment variables (gitignored)
-├── config.json           # Configuration leveraged (gitignored)
+├── config.json           # Configuration setting
 ├── .gitignore            # Git ignore rules
 └── chroma.sqlite3/       # Chroma vector store (gitignored)
 ```
@@ -156,9 +150,7 @@ Type 'exit', 'quit', or 'stop' to end the conversation
 | `GOOGLE_API_KEY` | API key for Google Gemini embeddings | ✅ |
 | `OBSIDIAN_VAULT_PATH` | Path to your Obsidian vault | ✅ |
 
-### Model Configuration
-
-### Adding New Features
+## Future New Features
 - [ ] **Retrieve Data Rating**: Add a rating for evaluating data quality
 - [ ] **GUI Interface**: Develop a web-based or desktop graphical user interface
 - [ ] **Web Search Integration**: Add real-time web search capabilities using Tavily APIs
