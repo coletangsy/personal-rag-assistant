@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from dotenv import load_dotenv
 from typing import TypedDict, List, Annotated, Sequence
 
@@ -100,10 +101,34 @@ def should_continue(state: AgentState) -> bool:
     return hasattr(result, 'tool_calls') and len(result.tool_calls) > 0
 
 
-def call_llm(state: AgentState, llm):
+def should_continue_retrieval(state: AgentState) -> bool:
+    """Check if retrieval should continue based on ranker's boolean evaluation"""
+    last_message = state["messages"][-1]
+    
+    # Check if the last message contains the ranker's evaluation
+    if hasattr(last_message, 'content') and last_message.content:
+        content = last_message.content
+        
+        # Look for the boolean evaluation in the format "acceptable:true" or "acceptable:false"
+        match = re.search(r'acceptable:(true|false)', content.lower())
+        
+        if match:
+            is_acceptable = match.group(1) == 'true'
+            print(f"🔍 Ranker evaluation: acceptable={is_acceptable}")
+            
+            # If the answer is not acceptable, continue retrieval
+            # If the answer is acceptable, stop retrieval and proceed to assistant
+            return not is_acceptable
+    
+    # Default behavior: if we can't parse the ranker's output, continue retrieval
+    print("⚠️  Could not parse ranker evaluation, defaulting to continue retrieval")
+    return True
+
+
+def call_llm(state: AgentState, llm, agent_prompt):
     """Call the LLM with the current state and system prompt"""
     messages = list(state["messages"])
-    messages = [SystemMessage(content=CONFIG["system_prompt"])] + messages
+    messages = [SystemMessage(content=agent_prompt)] + messages
     message = llm.invoke(messages)
     return {"messages": [message]}
 
@@ -141,31 +166,44 @@ def create_rag_agent(llm, tools_dict):
     print("🧩 Building RAG Agent Graph...")
     
     # Create stateful functions with bound parameters
-    def call_llm_bound(state: AgentState):
-        return call_llm(state, llm)
+    def assistant_llm_bound(state: AgentState):
+        return call_llm(state, llm, CONFIG["assistant_prompt"])
     
     def retrieve_data_bound(state: AgentState):
         return retrieve_data(state, tools_dict)
-    
+
+    def ranker_llm_bound(state: AgentState):
+        return call_llm(state, llm, CONFIG["ranker_prompt"])
+
     # Build the graph
     graph = StateGraph(AgentState)
-    graph.add_node("Assistant_agent", call_llm_bound)
+    graph.add_node("Assistant_agent", assistant_llm_bound)
     graph.add_node("Retriever_agent", retrieve_data_bound)
+    graph.add_node("Ranker_agent", ranker_llm_bound)
+
     graph.set_entry_point("Assistant_agent")
-    
+
+    # Assistant -> Retriever (when tools are needed)
     graph.add_conditional_edges(
         "Assistant_agent",
         should_continue,
         {True: "Retriever_agent", False: END}
     )
     
-    graph.add_edge("Retriever_agent", "Assistant_agent")
+    # Retriever -> Ranker (always process retrieved data)
+    graph.add_edge("Retriever_agent", "Ranker_agent")
+    
+    # Ranker -> (if results are bad) -> Retriever OR (if results are good) -> Assistant
+    graph.add_conditional_edges(
+        "Ranker_agent",
+        should_continue_retrieval,  # Need to implement this function
+        {True: "Retriever_agent", False: "Assistant_agent"}
+    )
     
     rag_agent = graph.compile()
     print("✅ RAG Agent compiled successfully")
     
     return rag_agent
-
 
 def run_conversation(rag_agent):
     """Run the conversational interface"""
