@@ -29,7 +29,16 @@ load_dotenv()
 
 # Load configuration from external JSON file
 def load_config():
-    """Load configuration from config.json file"""
+    """
+    Load configuration from config.json file.
+    
+    Returns:
+        dict: Configuration dictionary loaded from config.json
+    
+    Raises:
+        FileNotFoundError: If config.json file is not found
+        json.JSONDecodeError: If config.json contains invalid JSON
+    """
     config_path = "config.json"
     try:
         with open(config_path, 'r') as f:
@@ -49,7 +58,16 @@ CONFIG = load_config()
 
 
 class AgentState(TypedDict):
-    """State definition for the RAG agent"""
+    """
+    State definition for the RAG agent.
+    
+    Attributes:
+        messages: Sequence of conversation messages
+        original_question: The original user question
+        retrieved_content: Content retrieved from the knowledge base
+        ranker_evaluation: Evaluation result from the ranker agent
+        retrieval_attempts: Number of retrieval attempts made
+    """
     messages: Annotated[Sequence[BaseMessage], add_messages]
     original_question: str
     retrieved_content: str
@@ -58,7 +76,18 @@ class AgentState(TypedDict):
 
 
 def initialize_components():
-    """Initialize all necessary components for the RAG system"""
+    """
+    Initialize all necessary components for the RAG system.
+    
+    Returns:
+        tuple: A tuple containing:
+            - llm_with_tools: LLM instance with bound tools
+            - tools_dict: Dictionary of available tools
+            - retriever_manager: Retriever manager instance
+    
+    Raises:
+        Exception: If any component fails to initialize
+    """
     print("🚀 Initializing RAG System Components...")
     
     # Initialize LLM
@@ -109,7 +138,16 @@ def initialize_components():
 
 
 def create_rag_agent(llm, tools_dict):
-    """Create and compile the RAG agent graph with early safety validation"""
+    """
+    Create and compile the RAG agent graph with early safety validation.
+    
+    Args:
+        llm: The language model instance with bound tools
+        tools_dict: Dictionary of available tools for the agent
+    
+    Returns:
+        StateGraph: Compiled RAG agent graph ready for execution
+    """
     print("🧩 Building Enhanced RAG Agent Graph with Early Safety...")
     
     # Create wrapper functions with bound parameters
@@ -174,7 +212,15 @@ def create_rag_agent(llm, tools_dict):
 
 
 def run_conversation(rag_agent):
-    """Run the conversational interface"""
+    """
+    Run the conversational interface for the RAG system.
+    
+    Args:
+        rag_agent: The compiled RAG agent graph to execute
+    
+    This function provides an interactive command-line interface where users
+    can ask questions and receive answers from the RAG system.
+    """
     print("\n" + "="*60)
     print("💬 RAG Conversation Started")
     print("Type 'exit', 'quit', or 'stop' to end the conversation")
@@ -213,7 +259,15 @@ def run_conversation(rag_agent):
 
 
 def main():
-    """Main function to run the RAG application"""
+    """
+    Main function to run the RAG application.
+    
+    This function orchestrates the entire RAG system:
+    1. Initializes all components
+    2. Creates the RAG agent
+    3. Starts the conversation interface
+    4. Handles graceful shutdown and error recovery
+    """
     try:
         # Initialize all components
         llm, tools_dict, _ = initialize_components()

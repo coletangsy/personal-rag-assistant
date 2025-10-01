@@ -3,7 +3,17 @@ from langchain_core.messages import SystemMessage, ToolMessage
 from typing import Dict, Any
 
 def call_llm(state, llm, agent_prompt):
-    """Call the LLM with the current state and system prompt"""
+    """
+    Call the LLM with the current state and system prompt.
+    
+    Args:
+        state: The current conversation state containing messages
+        llm: The language model instance to invoke
+        agent_prompt: The system prompt to prepend to the conversation
+    
+    Returns:
+        dict: Updated state containing the LLM's response message
+    """
     messages = list(state["messages"])
     messages = [SystemMessage(content=agent_prompt)] + messages
     
@@ -19,7 +29,15 @@ def call_llm(state, llm, agent_prompt):
 
 
 def is_question_safe(state):
-    """Check if the question is safe based on safety agent's evaluation"""
+    """
+    Check if the question is safe based on safety agent's evaluation.
+    
+    Args:
+        state: The current conversation state containing safety evaluation messages
+    
+    Returns:
+        bool: True if the question is safe, False otherwise
+    """
     last_message = state["messages"][-1]
     
     # Check if the last message contains the safety evaluation
@@ -44,13 +62,29 @@ def is_question_safe(state):
 
 
 def should_continue(state):
-    """Check if the last message contains tool calls"""
+    """
+    Check if the last message contains tool calls.
+    
+    Args:
+        state: The current conversation state containing messages
+    
+    Returns:
+        bool: True if the last message contains tool calls, False otherwise
+    """
     result = state["messages"][-1]
     return hasattr(result, 'tool_calls') and len(result.tool_calls) > 0
 
 
 def should_continue_retrieval(state):
-    """Check if retrieval should continue based on ranker's boolean evaluation and attempt count"""
+    """
+    Check if retrieval should continue based on ranker's evaluation and attempt count.
+    
+    Args:
+        state: The current conversation state containing ranker evaluation and attempt count
+    
+    Returns:
+        bool: True if retrieval should continue, False if maximum attempts reached or content is acceptable
+    """
     # Use the stored ranker_evaluation from state instead of parsing from messages
     ranker_evaluation = state.get("ranker_evaluation", "")
     retrieval_attempts = state.get("retrieval_attempts", 0)
@@ -83,9 +117,18 @@ def should_continue_retrieval(state):
     return True
 
 
-
 def safety_validation_llm_bound(state, llm, config):
-    """Safety agent that evaluates if the question is safe using the original question from state"""
+    """
+    Safety agent that evaluates if the question is safe using the original question from state.
+    
+    Args:
+        state: The current conversation state containing the original question
+        llm: The language model instance to invoke
+        config: Configuration parameters for the safety agent
+    
+    Returns:
+        dict: Updated state containing the safety evaluation message
+    """
     print("🔒 Safety Agent: Evaluating question safety")
     
     # Use the stored original_question from state
@@ -120,7 +163,17 @@ def safety_validation_llm_bound(state, llm, config):
 
 
 def assistant_llm_bound(state, llm, config):
-    """Assistant agent that generates search queries using the original question from state"""
+    """
+    Assistant agent that generates search queries using the original question from state.
+    
+    Args:
+        state: The current conversation state containing the original question
+        llm: The language model instance to invoke
+        config: Configuration parameters for the assistant agent
+    
+    Returns:
+        dict: Updated state containing the assistant's response message
+    """
     print("🤖 Assistant Agent: Generating search queries")
     
     # Use the stored original_question from state
@@ -148,7 +201,16 @@ def assistant_llm_bound(state, llm, config):
 
 
 def retrieve_data_bound(state, tools_dict: Dict[str, Any]):
-    """Execute tool calls from the LLM's messages and store retrieved content"""
+    """
+    Execute tool calls from the LLM's messages and store retrieved content.
+    
+    Args:
+        state: The current conversation state containing tool calls
+        tools_dict: Dictionary mapping tool names to tool instances
+    
+    Returns:
+        dict: Updated state containing tool execution results and retrieval metadata
+    """
     tool_calls = state["messages"][-1].tool_calls
     results = []
     
@@ -188,7 +250,17 @@ def retrieve_data_bound(state, tools_dict: Dict[str, Any]):
 
 
 def ranker_llm_bound(state, llm, config):
-    """Ranker agent that evaluates the quality of retrieved content"""
+    """
+    Ranker agent that evaluates the quality of retrieved content.
+    
+    Args:
+        state: The current conversation state containing retrieved content and original question
+        llm: The language model instance to invoke
+        config: Configuration parameters for the ranker agent
+    
+    Returns:
+        dict: Updated state containing the ranker evaluation message and stored evaluation
+    """
     print("🔍 Ranker Agent: Evaluating retrieved content quality")
     
     # Use the stored retrieved_content from state
@@ -230,7 +302,17 @@ def ranker_llm_bound(state, llm, config):
 
 
 def pr_processing_llm_bound(state, llm, config):
-    """PR agent that processes the final answer with proper context"""
+    """
+    PR agent that processes the final answer with proper context.
+    
+    Args:
+        state: The current conversation state containing all retrieval context
+        llm: The language model instance to invoke
+        config: Configuration parameters for the PR agent
+    
+    Returns:
+        dict: Updated state containing the final polished answer for the user
+    """
     print("🎯 PR Agent: Processing final answer")
     
     # Use the stored values from state instead of extracting from messages
