@@ -10,8 +10,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
 # Local imports
-from retriever_manager import RetrieverManager
-from agent_functions import (
+from .retriever_manager import RetrieverManager
+from .agents import (
     safety_validation_llm_bound,
     assistant_llm_bound,
     retrieve_data_bound,
