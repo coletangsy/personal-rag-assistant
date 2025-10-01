@@ -1,20 +1,51 @@
-# 🤖 Personal Assistant Bot
+# 🤖 Personal RAG Assistant
 
-A sophisticated AI-powered personal assistant that combines Retrieval-Augmented Generation (RAG) with a two-stage agent workflow to provide intelligent, context-aware responses based on my personal knowledge base.
+A sophisticated AI-powered personal assistant that combines Retrieval-Augmented Generation (RAG) with a multi-agent workflow to provide intelligent, context-aware responses based on personal knowledge bases including Obsidian vaults and PDF documents.
+
+## 🆕 What's New
+
+### Latest Updates (October 2025)
+
+**🚀 Enhanced Multi-Agent RAG System**
+- **Early Safety Validation**: Questions are now evaluated for safety before processing, ensuring appropriate content filtering
+- **Content Quality Ranking**: Automatic evaluation of retrieved information quality with multi-attempt retrieval for better answers
+- **Professional Response Formatting**: Final answers are now polished with clear structure, proper formatting, and accessibility improvements
+- **Improved Error Handling**: More robust error recovery and user-friendly error messages
+
+**🔧 Better Project Organization**
+- **Cleaner Codebase**: Reorganized file structure for easier maintenance and future development
+- **Simplified Setup**: All configuration files remain easily accessible while source code is properly organized
+- **Better Developer Experience**: Clear separation between application logic, agents, and data management
+
+**What This Means for You:**
+- More reliable and safe responses to your questions
+- Higher quality answers with better information filtering
+- Professional-looking responses with proper formatting
+- Easier to customize and extend the system
+- More stable and maintainable application
+
+**Getting Started with the Latest Version:**
+```bash
+uv run python src/main.py
+```
 
 ## ✨ Features
 
 ### 🎯 Core Functionality
-- **Two-Stage Agent Workflow**: Searcher agent retrieves relevant information, followed by Assistant agent crafting responses
-- **RAG Integration**: Retrieval-Augmented Generation powered by Chroma vector database that combines retrieved knowledge with LLM capabilities
-- **Obsidian Integration**: Seamlessly indexes and retrieves information from my Obsidian vault
+- **Multi-Agent Workflow**: Safety validation → Assistant → Retriever → Ranker → PR processing
+- **RAG Integration**: Retrieval-Augmented Generation powered by Chroma vector database
+- **Early Safety Validation**: Question safety evaluation before processing
+- **Content Quality Ranking**: Automatic evaluation of retrieved content quality
+- **Obsidian & PDF Integration**: Seamlessly indexes and retrieves information from Obsidian vaults and PDF documents
 - **Interactive Chat Interface**: User-friendly command-line interface with real-time feedback
 
 ### 🛠️ Technical Features
-- **Multi-agents Support**: Gemini models for different tasks (search vs. response generation)
-- **Modular Architecture**: Clean separation of concerns with dedicated modules for agents, and RAG
+- **LangGraph Integration**: Multi-agent workflow orchestration
+- **Google Gemini Models**: State-of-the-art LLM and embedding models
+- **Modular Architecture**: Clean separation of concerns with dedicated modules
 - **Error Handling**: Robust error recovery and graceful degradation
 - **Progress Indicators**: Real-time status updates during processing
+- **UV Package Management**: Fast and reliable dependency management
 
 ## 📹 Demo
 
@@ -27,16 +58,14 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
 ### Prerequisites
 - Python 3.12+
 - UV package manager
-- API keys for:
-  - Google Gemini API (for embeddings)
-  - Obsidian vault path
+- Google Gemini API key
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd personal-assistant-bot
+   cd personal-rag-assistant
    ```
 
 2. **Install dependencies**
@@ -45,11 +74,13 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
    ```
 
 3. **Set up your environment**
+   Create a `.env` file:
    ```env
    GOOGLE_API_KEY=your_google_api_key_here
    ```
 
-4. **Set up your config**
+4. **Configure your knowledge sources**
+   Edit `config.json`:
    ```json
    {
     "llm": {
@@ -57,7 +88,7 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
         "temperature": 0
     },
     "vector_store": {
-        "persist_directory": "your_own_store_path",
+        "persist_directory": "./data/",
         "collection_name": "obsidian",
         "embedding_model": "models/gemini-embedding-001"
     },
@@ -65,43 +96,52 @@ https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
         "path": ""
     },
     "obsidian": {
-        "path": "your_obsidian_vault_path"
+        "path": "/path/to/your/obsidian/vault"
     },
     "retriever": {
         "search_type": "similarity",
-        "k": 5
+        "k": 3
     },
     "text_splitter": {
         "chunk_size": 1000,
         "chunk_overlap": 200
-    },
-    "system_prompt": "You are an intelligent AI assistant who ..."
+    }
    }
    ```
 
 5. **Run the application**
    ```bash
-   uv run python main.py
+   uv run src/main.py
    ```
 
 ## 📁 Project Structure
 
 ```
-personal-assistant-bot/
-├── main.py               # Main application entry point
-├── retriever_manager.py  # RAG database and document processing
-├── pyproject.toml        # Project dependencies
-├── .env                  # Environment variables (gitignored)
-├── config.json           # Configuration setting
-├── .gitignore            # Git ignore rules
-└── chroma.sqlite3/       # Chroma vector store (gitignored)
+personal-rag-assistant/
+├── 📁 src/                    # Main source code
+│   ├── __init__.py
+│   ├── main.py               # Main application entry point
+│   ├── agents.py             # All agent functions (safety, assistant, ranker, PR)
+│   └── retriever_manager.py  # Vector database and document processing
+├── 📁 data/                  # Data storage
+│   ├── chroma.sqlite3        # Chroma vector database
+│   ├── vector_indices/       # Vector index files
+│   └── documents/            # Source documents (PDFs, etc.)
+├── .venv/                    # Python virtual environment (uv)
+├── .gitignore                # Git ignore rules
+├── .python-version           # Python version specification
+├── config.json               # Application configuration
+├── pyproject.toml            # Project dependencies (uv)
+├── uv.lock                   # Dependency lock file
+├── README.md                 # Project documentation
+└── .env                      # Environment variables
 ```
 
 ## 🎮 Usage
 
-### Starting the Bot
+### Starting the Assistant
 ```bash
-uv run python main.py
+uv run src/main.py
 ```
 
 ### Dependencies Management
@@ -120,40 +160,72 @@ uv sync
 
 ✅ LLM initialized
 ✅ Retriever Manager initialized
-
 ✅ Retriever initialized
 ✅ Retriever tool created
 
-🧩 Building RAG Agent Graph...
-✅ RAG Agent compiled successfully
+🧩 Building Enhanced RAG Agent Graph with Early Safety...
+✅ Enhanced RAG Agent with Early Safety compiled successfully
 
 ============================================================
 💬 RAG Conversation Started
 Type 'exit', 'quit', or 'stop' to end the conversation
 ============================================================
 
-❓ What is your question: 
-👤 You: What is machine learning?
+❓ What is your question: What is machine learning?
+🔄 Processing question: 'What is machine learning?'
+🔒 Safety Agent: Evaluating question safety
+🔒 Safety agent checking question: 'What is machine learning?'
+...
+🤖 Final Answer: Machine learning is a subset of artificial intelligence...
 ```
 
-### Example Workflow
-1. **User Query**: "What is machine learning?"
-2. **Stage 1**: Searcher agent analyzes query and retrieve information from database
-3. **Stage 2**: Assistant agent crafts response based on research
-4. **Response**: Comprehensive answer combining database knowledge and LLM capabilities
+### Agent Workflow
+1. **Safety Agent**: Validates question safety before processing
+2. **Assistant Agent**: Generates search queries for information retrieval
+3. **Retriever Agent**: Executes searches in the knowledge base
+4. **Ranker Agent**: Evaluates quality of retrieved content
+5. **PR Agent**: Processes final answer with proper formatting and context
 
 ## 🔧 Configuration
 
 ### Environment Variables
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GOOGLE_API_KEY` | API key for Google Gemini embeddings | ✅ |
-| `OBSIDIAN_VAULT_PATH` | Path to your Obsidian vault | ✅ |
+| `GOOGLE_API_KEY` | API key for Google Gemini models | ✅ |
 
-## Future New Features
-- [ ] **Retrieve Data Rating**: Add a rating for evaluating data quality
-- [ ] **GUI Interface**: Develop a web-based or desktop graphical user interface
-- [ ] **Web Search Integration**: Add real-time web search capabilities using Tavily APIs
+### Configuration Options
+- **LLM Settings**: Model selection, temperature control
+- **Vector Store**: Persistence directory, collection names, embedding models
+- **Document Sources**: PDF and Obsidian vault paths
+- **Retriever Settings**: Search type, result count (k)
+- **Text Processing**: Chunk size and overlap for document splitting
+
+## 🔄 Agent Workflow Details
+
+### Safety Validation
+- Early question safety evaluation
+- Prevents processing of harmful or inappropriate content
+- Configurable safety criteria
+
+### Content Retrieval
+- Automatic vector database initialization
+- Support for multiple document formats (PDF, Markdown)
+- Configurable search parameters
+
+### Quality Assessment
+- Automatic ranking of retrieved content
+- Multi-attempt retrieval for better results
+- Maximum attempt limits to prevent infinite loops
+
+### Response Generation
+- Final answer polishing and formatting
+- Context-aware response generation
+- Professional tone and accessibility
+
+## Future Enhancements
+- [ ] **Web Search Integration**: Add real-time web search capabilities
+- [ ] **GUI Interface**: Develop a web-based or desktop interface
 - [ ] **Advanced Caching**: Implement response caching for frequently asked questions
-- [ ] **Advanced Filtering**: Implement content filtering and safety mechanisms
-- [ ] **Monitoring Dashboard**: Add performance monitoring and analytics
+- [ ] **Multi-modal Support**: Support for images and other media types
+- [ ] **Advanced Analytics**: Performance monitoring and usage analytics
+- [ ] **Plugin System**: Extensible architecture for custom agents and tools

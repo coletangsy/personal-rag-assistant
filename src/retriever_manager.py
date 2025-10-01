@@ -14,6 +14,14 @@ from langchain_core.tools import tool
 
 class RetrieverManager:
     def __init__(self, persist_directory: str, collection_name: str, embedding_model: str = "models/gemini-embedding-001"):
+        """
+        Initialize the RetrieverManager.
+        
+        Args:
+            persist_directory: Directory path for persisting the vector store
+            collection_name: Name of the ChromaDB collection
+            embedding_model: Google Generative AI embedding model to use
+        """
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self.embeddings = GoogleGenerativeAIEmbeddings(model=embedding_model)
@@ -25,7 +33,12 @@ class RetrieverManager:
         
 
     def _load_text_splitter_config(self):
-        """Load text splitter configuration from config.json"""
+        """
+        Load text splitter configuration from config.json.
+        
+        Returns:
+            dict: Text splitter configuration with chunk_size and chunk_overlap
+        """
         try:
             with open("config.json", 'r') as f:
                 config = json.load(f)
@@ -36,7 +49,12 @@ class RetrieverManager:
         
 
     def check_collection_exists(self) -> bool:
-        """Check if a ChromaDB collection already exists"""
+        """
+        Check if a ChromaDB collection already exists.
+        
+        Returns:
+            bool: True if the collection exists, False otherwise
+        """
         try:
             client = chromadb.PersistentClient(path=self.persist_directory)
             existing_collections = client.list_collections()
@@ -47,7 +65,18 @@ class RetrieverManager:
     
 
     def create_collection_from_pdf(self, pdf_path: str) -> bool:
-        """Create a new collection from a PDF file"""
+        """
+        Create a new collection from a PDF file.
+        
+        Args:
+            pdf_path: Path to the PDF file to process
+            
+        Returns:
+            bool: True if collection creation was successful, False otherwise
+            
+        Raises:
+            FileNotFoundError: If the PDF file does not exist
+        """
         if not os.path.exists(pdf_path):
             raise FileNotFoundError(f"PDF file not found: {pdf_path}")
         
@@ -81,7 +110,18 @@ class RetrieverManager:
     
     
     def create_collection_from_obsidian(self, obsidian_path: str) -> bool:
-        """Create a new collection from an Obsidian vault"""
+        """
+        Create a new collection from an Obsidian vault.
+        
+        Args:
+            obsidian_path: Path to the Obsidian vault directory
+            
+        Returns:
+            bool: True if collection creation was successful, False otherwise
+            
+        Raises:
+            FileNotFoundError: If the Obsidian vault directory does not exist
+        """
         if not os.path.exists(obsidian_path):
             raise FileNotFoundError(f"Obsidian vault not found: {obsidian_path}")
         
@@ -124,7 +164,12 @@ class RetrieverManager:
     
 
     def load_existing_collection(self) -> bool:
-        """Load an existing ChromaDB collection"""
+        """
+        Load an existing ChromaDB collection.
+        
+        Returns:
+            bool: True if collection was loaded successfully, False otherwise
+        """
         try:
             self.vectorstore = Chroma(
                 persist_directory=self.persist_directory,
@@ -139,7 +184,16 @@ class RetrieverManager:
     
 
     def setup_retriever(self, search_type: str = "similarity", k: int = 5):
-        """Setup the retriever with given parameters"""
+        """
+        Setup the retriever with given parameters.
+        
+        Args:
+            search_type: Type of search to perform ("similarity", "mmr", etc.)
+            k: Number of documents to retrieve
+            
+        Raises:
+            RuntimeError: If vector store is not initialized
+        """
         if self.vectorstore is None:
             raise RuntimeError("Vector store not initialized")
         
@@ -151,7 +205,22 @@ class RetrieverManager:
     
 
     def initialize_retriever(self, pdf_path: Optional[str] = None, obsidian_path: Optional[str] = None, search_type: str = "similarity", k: int = 5):
-        """Initialize the retriever, creating collection from either PDF or Obsidian vault if needed"""
+        """
+        Initialize the retriever, creating collection from either PDF or Obsidian vault if needed.
+        
+        Args:
+            pdf_path: Optional path to PDF file for creating new collection
+            obsidian_path: Optional path to Obsidian vault for creating new collection
+            search_type: Type of search to perform
+            k: Number of documents to retrieve
+            
+        Returns:
+            Retriever: Initialized retriever instance
+            
+        Raises:
+            ValueError: If both PDF and Obsidian paths are specified
+            RuntimeError: If collection loading/creation fails
+        """
         collection_exists = self.check_collection_exists()
         
         if collection_exists:
@@ -183,14 +252,30 @@ class RetrieverManager:
     
 
     def get_retriever_tool(self):
-        """Create and return the retriever tool"""
+        """
+        Create and return the retriever tool.
+        
+        Returns:
+            Tool: LangChain tool for document retrieval
+            
+        Raises:
+            RuntimeError: If retriever is not initialized
+        """
         if self.retriever is None:
             raise RuntimeError("Retriever not initialized. Call initialize_retriever() first.")
         
         
         @tool
         def retriever_tool(query: str) -> str:
-            """This tool searches and returns information from the database"""
+            """
+            Search and return information from the database.
+            
+            Args:
+                query: Search query to find relevant documents
+                
+            Returns:
+                str: Retrieved documents concatenated as a string
+            """
             docs = self.retriever.invoke(query)
             
             if not docs:

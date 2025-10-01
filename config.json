@@ -16,11 +16,10 @@
     },
     "retriever": {
         "search_type": "similarity",
-        "k": 5
+        "k": 3
     },
     "text_splitter": {
         "chunk_size": 1000,
         "chunk_overlap": 200
-    },
-    "system_prompt": "You are an intelligent AI assistant who answers questions based on the PDF document loaded into your knowledge base.\nUse the retriever tool available to answer questions. You can make multiple calls if needed.\nIf you need to look up some information before asking a follow up question, you are allowed to do that!\nPlease always cite the specific parts of the documents you use in your answers."
+    }
 }
