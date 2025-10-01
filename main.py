@@ -42,6 +42,9 @@ CONFIG = load_config()
 class AgentState(TypedDict):
     """State definition for the RAG agent"""
     messages: Annotated[Sequence[BaseMessage], add_messages]
+    original_question: str
+    retrieved_content: str
+    ranker_evaluation: str
     
 
 def is_question_safe(state: AgentState) -> bool:
@@ -128,16 +131,14 @@ def should_continue(state: AgentState) -> bool:
 
 def should_continue_retrieval(state: AgentState) -> bool:
     """Check if retrieval should continue based on ranker's boolean evaluation"""
-    last_message = state["messages"][-1]
+    # Use the stored ranker_evaluation from state instead of parsing from messages
+    ranker_evaluation = state.get("ranker_evaluation", "")
     
-    # Check if the last message contains the ranker's evaluation
-    if hasattr(last_message, 'content') and last_message.content:
-        content = last_message.content
-        
-        print(f"🔍 Ranker agent output: '{content}'")
+    if ranker_evaluation:
+        print(f"🔍 Ranker agent output: '{ranker_evaluation}'")
         
         # Look for the boolean evaluation in the format "acceptable:true" or "acceptable:false"
-        match = re.search(r'acceptable:(true|false)', content.lower())
+        match = re.search(r'acceptable:(true|false)', ranker_evaluation.lower())
         
         if match:
             is_acceptable = match.group(1) == 'true'
@@ -154,6 +155,7 @@ def should_continue_retrieval(state: AgentState) -> bool:
     return True
 
 
+# maybe convert it into version (debug with print-out, default without print-out)
 def call_llm(state: AgentState, llm, agent_prompt):
     """Call the LLM with the current state and system prompt"""
     messages = list(state["messages"])
@@ -170,8 +172,70 @@ def call_llm(state: AgentState, llm, agent_prompt):
     return {"messages": [message]}
 
 
-def retrieve_data(state: AgentState, tools_dict: dict):
-    """Execute tool calls from the LLM's messages"""
+def safety_validation_llm_bound(state: AgentState, llm):
+    """Safety agent that evaluates if the question is safe using the original question from state"""
+    print("🔒 Safety Agent: Evaluating question safety")
+    
+    # Use the stored original_question from state
+    original_question = state.get("original_question", "")
+    
+    print(f"🔒 Safety agent checking question: '{original_question}'")
+    
+    # Create a safety evaluation prompt that uses the original question from state
+    safety_prompt = f"""
+    You are a Safety Evaluation Agent. Your task is to determine if the following user question is safe and appropriate to answer.
+
+    USER'S QUESTION: {original_question}
+
+    EVALUATION CRITERIA:
+    - The question should not promote harm, violence, or illegal activities
+    - The question should not contain hate speech or offensive content
+    - The question should not request inappropriate or explicit content
+    - The question should be appropriate for a general audience
+
+    INSTRUCTIONS:
+    1. Analyze the user's question above
+    2. Determine if it meets the safety criteria
+    3. Respond ONLY with: "safe:true" or "safe:false"
+    4. Do not include any additional text or explanation
+
+    Your response must be exactly one of these two options:
+    - "safe:true" if the question is safe
+    - "safe:false" if the question is unsafe
+    """
+    
+    return call_llm(state, llm, safety_prompt)
+
+
+def assistant_llm_bound(state: AgentState, llm):
+    """Assistant agent that generates search queries using the original question from state"""
+    print("🤖 Assistant Agent: Generating search queries")
+    
+    # Use the stored original_question from state
+    original_question = state.get("original_question", "")
+    
+    print(f"🤖 Assistant agent processing question: '{original_question}'")
+    
+    # Create an assistant prompt that uses the original question from state
+    assistant_prompt = f"""
+    You are an Assistant Agent. Your task is to help answer the user's question by generating appropriate search queries.
+
+    USER'S QUESTION: {original_question}
+
+    INSTRUCTIONS:
+    1. Analyze the user's question above
+    2. Generate search queries that would help retrieve relevant information
+    3. Use the available retrieval tools to search for information
+    4. If you need to search for information, use the retriever tool
+    5. If you can answer directly without searching, provide the answer
+
+    Remember to use the retrieval tools when needed to find the best information.
+    """
+    
+    return call_llm(state, llm, assistant_prompt)
+
+def retrieve_data_bound(state: AgentState, tools_dict: dict):
+    """Execute tool calls from the LLM's messages and store retrieved content"""
     tool_calls = state["messages"][-1].tool_calls
     results = []
     
@@ -198,25 +262,58 @@ def retrieve_data(state: AgentState, tools_dict: dict):
         ))
     
     print("✅ Tools executed successfully")
-    return {"messages": results}
+    return {"messages": results, "retrieved_content": str(results[0].content) if results else ""}
+
+def ranker_llm_bound(state: AgentState, llm):
+    """Ranker agent that evaluates the quality of retrieved content"""
+    print("🔍 Ranker Agent: Evaluating retrieved content quality")
+    
+    # Use the stored retrieved_content from state
+    retrieved_content = state.get("retrieved_content", "")
+    original_question = state.get("original_question", "")
+    
+    print(f"🔍 Ranker agent evaluating content for question: '{original_question}'")
+    print(f"🔍 Retrieved content length: {len(retrieved_content)}")
+    
+    # Create a ranker prompt that uses the original question and retrieved content from state
+    ranker_prompt = f"""
+    You are a Ranker Agent. Your task is to evaluate whether the retrieved information sufficiently answers the user's question.
+
+    USER'S ORIGINAL QUESTION: {original_question}
+    RETRIEVED INFORMATION: {retrieved_content}
+
+    EVALUATION CRITERIA:
+    - Does the retrieved information directly address the user's question?
+    - Is the information comprehensive enough to provide a complete answer?
+    - Is the information relevant and accurate?
+    - Are there any gaps in the information that need additional retrieval?
+
+    INSTRUCTIONS:
+    1. Analyze the retrieved information against the user's question
+    2. Determine if the information is acceptable for answering the question
+    3. Respond ONLY with: "acceptable:true" or "acceptable:false"
+    4. Do not include any additional text or explanation
+
+    Your response must be exactly one of these two options:
+    - "acceptable:true" if the retrieved information is sufficient
+    - "acceptable:false" if more or better information is needed
+    """
+    
+    result = call_llm(state, llm, ranker_prompt)
+    # Store the ranker evaluation in state
+    if result["messages"] and hasattr(result["messages"][-1], 'content'):
+        result["ranker_evaluation"] = result["messages"][-1].content
+    return result
 
 
 def pr_processing_llm_bound(state: AgentState, llm):
     """PR agent that processes the final answer with proper context"""
     print("🎯 PR Agent: Processing final answer")
     
-    # Collect all relevant information from the conversation
-    original_question = None
-    retrieved_content = None
-    ranker_evaluation = None
-    
-    for msg in state["messages"]:
-        if isinstance(msg, HumanMessage):
-            original_question = msg.content
-        elif isinstance(msg, ToolMessage):
-            retrieved_content = msg.content
-        elif isinstance(msg, AIMessage) and "acceptable:" in msg.content.lower():
-            ranker_evaluation = msg.content
+    # Use the stored values from state instead of extracting from messages
+    original_question = state.get("original_question", "Unknown")
+    retrieved_content = state.get("retrieved_content", "No information was retrieved")
+    ranker_evaluation = state.get("ranker_evaluation", "No evaluation provided")
     
     print(f"📝 PR Agent Context:")
     print(f"  - Original Question: {original_question}")
@@ -224,33 +321,32 @@ def pr_processing_llm_bound(state: AgentState, llm):
     print(f"  - Ranker Evaluation: {ranker_evaluation}")
     
     # Create a comprehensive prompt that includes all necessary context
-    comprehensive_prompt = f"""You are a Public Relations and Finalization Agent. Your task is to ensure the final answer is polished and accessible.
+    comprehensive_prompt = f"""
+    You are a Public Relations and Finalization Agent. Your task is to ensure the final answer is polished and accessible.
 
-USER'S ORIGINAL QUESTION: {original_question or "Unknown"}
+    USER'S ORIGINAL QUESTION: {original_question}
+    RETRIEVED INFORMATION: {retrieved_content}
+    RANKER EVALUATION: {ranker_evaluation}
 
-RETRIEVED INFORMATION:
-{retrieved_content or "No information was retrieved"}
+    INSTRUCTIONS:
+    1. Based on the retrieved information above, provide a clear, comprehensive answer to the user's question
+    2. Structure the answer in a clear, easy-to-understand format
+    3. Use proper paragraphs and formatting
+    4. Include bullet points or numbered lists when appropriate
+    5. Ensure the language is suitable for a general audience
+    6. Make the answer concise but comprehensive
+    7. If citations or references are included, format them clearly
+    8. Ensure the tone is professional, helpful, and accessible
+    9. ALWAYS ensure the final output is in ENGLISH, regardless of the input language
+    10. If any content is not in English, translate it to clear, natural English
 
-RANKER EVALUATION: {ranker_evaluation or "No evaluation provided"}
+    CRITICAL: If there is no answer available or the content indicates that no information was found, provide a polite response such as:
+    - "I'm sorry, but I couldn't find any relevant information to answer your question in my knowledge base."
+    - "Unfortunately, I don't have enough information in my database to provide a complete answer to your question."
+    - "Based on my search, I wasn't able to find specific information that addresses your question."
 
-INSTRUCTIONS:
-1. Based on the retrieved information above, provide a clear, comprehensive answer to the user's question
-2. Structure the answer in a clear, easy-to-understand format
-3. Use proper paragraphs and formatting
-4. Include bullet points or numbered lists when appropriate
-5. Ensure the language is suitable for a general audience
-6. Make the answer concise but comprehensive
-7. If citations or references are included, format them clearly
-8. Ensure the tone is professional, helpful, and accessible
-9. ALWAYS ensure the final output is in ENGLISH, regardless of the input language
-10. If any content is not in English, translate it to clear, natural English
-
-CRITICAL: If there is no answer available or the content indicates that no information was found, provide a polite response such as:
-- "I'm sorry, but I couldn't find any relevant information to answer your question in my knowledge base."
-- "Unfortunately, I don't have enough information in my database to provide a complete answer to your question."
-- "Based on my search, I wasn't able to find specific information that addresses your question."
-
-Your output is the FINAL answer that will be shown to the user."""
+    Your output is the FINAL answer that will be shown to the user.
+    """
     
     return call_llm(state, llm, comprehensive_prompt)
 
@@ -260,17 +356,17 @@ def create_rag_agent(llm, tools_dict):
     print("🧩 Building Enhanced RAG Agent Graph with Early Safety...")
     
     # Create stateful functions with bound parameters
-    def assistant_llm_bound(state: AgentState):
-        return call_llm(state, llm, CONFIG["assistant_prompt"])
+    def assistant_llm_bound_wrapper(state: AgentState):
+        return assistant_llm_bound(state, llm)
     
-    def retrieve_data_bound(state: AgentState):
-        return retrieve_data(state, tools_dict)
+    def retrieve_data_bound_wrapper(state: AgentState):
+        return retrieve_data_bound(state, tools_dict)
 
-    def ranker_llm_bound(state: AgentState):
-        return call_llm(state, llm, CONFIG["ranker_prompt"])
+    def ranker_llm_bound_wrapper(state: AgentState):
+        return ranker_llm_bound(state, llm)
 
-    def safety_validation_llm_bound(state: AgentState):
-        return call_llm(state, llm, CONFIG["safety_prompt"])
+    def safety_validation_llm_bound_wrapper(state: AgentState):
+        return safety_validation_llm_bound(state, llm)
 
     def pr_processing_llm_bound_wrapper(state: AgentState):
         return pr_processing_llm_bound(state, llm)
@@ -279,10 +375,10 @@ def create_rag_agent(llm, tools_dict):
     graph = StateGraph(AgentState)
     
     # Add all nodes
-    graph.add_node("Safety_agent", safety_validation_llm_bound)  # Moved to start
-    graph.add_node("Assistant_agent", assistant_llm_bound)
-    graph.add_node("Retriever_agent", retrieve_data_bound)
-    graph.add_node("Ranker_agent", ranker_llm_bound)
+    graph.add_node("Safety_agent", safety_validation_llm_bound_wrapper)  
+    graph.add_node("Assistant_agent", assistant_llm_bound_wrapper)
+    graph.add_node("Retriever_agent", retrieve_data_bound_wrapper)
+    graph.add_node("Ranker_agent", ranker_llm_bound_wrapper)
     graph.add_node("PR_agent", pr_processing_llm_bound_wrapper)
 
     graph.set_entry_point("Safety_agent")  # Start with safety validation
@@ -318,7 +414,7 @@ def create_rag_agent(llm, tools_dict):
     print("✅ Enhanced RAG Agent with Early Safety compiled successfully")
     
     return rag_agent
-
+    
 
 def run_conversation(rag_agent):
     """Run the conversational interface"""
@@ -341,8 +437,14 @@ def run_conversation(rag_agent):
         
         try:
             print(f"🔄 Processing question: '{user_input}'")
+            # Initialize state with the original question
             messages = [HumanMessage(content=user_input)]
-            result = rag_agent.invoke({"messages": messages})
+            result = rag_agent.invoke({
+                "messages": messages,
+                "original_question": user_input,
+                "retrieved_content": "",
+                "ranker_evaluation": ""
+            })
             
             print("\n" + "="*60)
             print(f"🤖 Final Answer: {result['messages'][-1].content}")
