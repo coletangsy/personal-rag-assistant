@@ -26,7 +26,7 @@ A sophisticated AI-powered personal assistant that combines Retrieval-Augmented 
 
 **Getting Started with the Latest Version:**
 ```bash
-uv run python src/main.py
+uv run src/main.py
 ```
 
 ## ✨ Features
@@ -49,7 +49,8 @@ uv run python src/main.py
 
 ## 📹 Demo
 
-https://github.com/user-attachments/assets/c8986719-b5c9-4c01-bd70-5232e03be297
+https://github.com/user-attachments/assets/02b3a7bf-f0b5-4d0b-bca6-fc1a02d70863
+
 
 
 
