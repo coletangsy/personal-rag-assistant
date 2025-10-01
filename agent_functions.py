@@ -50,9 +50,17 @@ def should_continue(state):
 
 
 def should_continue_retrieval(state):
-    """Check if retrieval should continue based on ranker's boolean evaluation"""
+    """Check if retrieval should continue based on ranker's boolean evaluation and attempt count"""
     # Use the stored ranker_evaluation from state instead of parsing from messages
     ranker_evaluation = state.get("ranker_evaluation", "")
+    retrieval_attempts = state.get("retrieval_attempts", 0)
+    
+    print(f"🔍 Current retrieval attempt: {retrieval_attempts}")
+    
+    # Check if we've reached the maximum attempts (5)
+    if retrieval_attempts >= 5:
+        print("🛑 Maximum retrieval attempts (5) reached. Stopping retrieval loop.")
+        return False
     
     if ranker_evaluation:
         print(f"🔍 Ranker agent output: '{ranker_evaluation}'")
@@ -73,6 +81,7 @@ def should_continue_retrieval(state):
     # Default behavior: if we can't parse the ranker's output, continue retrieval
     print("⚠️  Could not parse ranker evaluation, defaulting to continue retrieval")
     return True
+
 
 
 def safety_validation_llm_bound(state, llm, config):
@@ -166,7 +175,16 @@ def retrieve_data_bound(state, tools_dict: Dict[str, Any]):
         ))
     
     print("✅ Tools executed successfully")
-    return {"messages": results, "retrieved_content": str(results[0].content) if results else ""}
+    
+    # Increment retrieval attempts counter
+    current_attempts = state.get("retrieval_attempts", 0)
+    new_attempts = current_attempts + 1
+    
+    return {
+        "messages": results, 
+        "retrieved_content": str(results[0].content) if results else "",
+        "retrieval_attempts": new_attempts  # Update the attempts counter
+    }
 
 
 def ranker_llm_bound(state, llm, config):
@@ -219,11 +237,23 @@ def pr_processing_llm_bound(state, llm, config):
     original_question = state.get("original_question", "Unknown")
     retrieved_content = state.get("retrieved_content", "No information was retrieved")
     ranker_evaluation = state.get("ranker_evaluation", "No evaluation provided")
+    retrieval_attempts = state.get("retrieval_attempts", 0)
     
     print(f"📝 PR Agent Context:")
     print(f"  - Original Question: {original_question}")
     print(f"  - Retrieved Content Length: {len(retrieved_content) if retrieved_content else 0}")
     print(f"  - Ranker Evaluation: {ranker_evaluation}")
+    print(f"  - Retrieval Attempts: {retrieval_attempts}")
+    
+    # Check if we reached the maximum attempts
+    if retrieval_attempts >= 5:
+        print("🔄 Adding maximum attempts reached context to PR agent")
+        max_attempts_context = f"""
+        IMPORTANT: After {retrieval_attempts} retrieval attempts, I was unable to find sufficient information to answer your question. 
+        Please provide a polite response indicating that no relevant information was found after extensive searching.
+        """
+    else:
+        max_attempts_context = ""
     
     # Create a comprehensive prompt that includes all necessary context
     comprehensive_prompt = f"""
@@ -232,6 +262,7 @@ def pr_processing_llm_bound(state, llm, config):
     USER'S ORIGINAL QUESTION: {original_question}
     RETRIEVED INFORMATION: {retrieved_content}
     RANKER EVALUATION: {ranker_evaluation}
+    {max_attempts_context}
 
     INSTRUCTIONS:
     1. Based on the retrieved information above, provide a clear, comprehensive answer to the user's question

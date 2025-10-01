@@ -54,6 +54,7 @@ class AgentState(TypedDict):
     original_question: str
     retrieved_content: str
     ranker_evaluation: str
+    retrieval_attempts: int 
 
 
 def initialize_components():
@@ -156,7 +157,7 @@ def create_rag_agent(llm, tools_dict):
     # Retriever -> Ranker (always process retrieved data)
     graph.add_edge("Retriever_agent", "Ranker_agent")
     
-    # Ranker -> (if results are bad) -> Retriever OR (if results are good) -> PR
+    # Ranker -> (if results are bad AND attempts < 5) -> Retriever OR (if results are good OR attempts >= 5) -> PR
     graph.add_conditional_edges(
         "Ranker_agent",
         should_continue_retrieval,
@@ -193,13 +194,14 @@ def run_conversation(rag_agent):
         
         try:
             print(f"🔄 Processing question: '{user_input}'")
-            # Initialize state with the original question
+            # Initialize state with the original question and reset retrieval attempts
             messages = [HumanMessage(content=user_input)]
             result = rag_agent.invoke({
                 "messages": messages,
                 "original_question": user_input,
                 "retrieved_content": "",
-                "ranker_evaluation": ""
+                "ranker_evaluation": "",
+                "retrieval_attempts": 0  # Initialize retrieval attempts counter
             })
             
             print("\n" + "="*60)
