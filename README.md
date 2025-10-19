@@ -2,6 +2,11 @@
 
 A sophisticated AI-powered personal assistant that combines Retrieval-Augmented Generation (RAG) with a multi-agent workflow to provide intelligent, context-aware responses based on personal knowledge bases including Obsidian vaults and PDF documents.
 
+
+## 📹 Demo
+https://github.com/user-attachments/assets/dc462521-ccde-4a76-9b33-023ec03f2bb2
+
+
 ## 🆕 What's New
 
 ### Latest Updates (October 2025)
@@ -37,6 +42,7 @@ A sophisticated AI-powered personal assistant that combines Retrieval-Augmented 
 uv run src/main.py
 ```
 
+
 ## ✨ Features
 
 ### 🎯 Core Functionality
@@ -56,13 +62,6 @@ uv run src/main.py
 - **Error Handling**: Robust error recovery and graceful degradation
 - **Progress Indicators**: Real-time status updates during processing
 - **UV Package Management**: Fast and reliable dependency management
-
-
-## 📹 Demo
-
-https://github.com/user-attachments/assets/02b3a7bf-f0b5-4d0b-bca6-fc1a02d70863
-
-
 
 
 ## 🚀 Quick Start
@@ -144,6 +143,7 @@ https://github.com/user-attachments/assets/02b3a7bf-f0b5-4d0b-bca6-fc1a02d70863
     docker-compose up
     ```
 
+
 ## 📁 Project Structure
 
 ```
@@ -168,8 +168,8 @@ personal-rag-assistant/
 └── README.md                 # Project documentation
 ```
 
-## 🎮 Usage
 
+## 🎮 Usage
 
 ### Interactive Session Example
 ```
@@ -204,6 +204,7 @@ Type 'exit', 'quit', or 'stop' to end the conversation
 4. **Ranker Agent**: Evaluates quality of retrieved content
 5. **PR Agent**: Processes final answer with proper formatting and context
 
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -217,6 +218,7 @@ Type 'exit', 'quit', or 'stop' to end the conversation
 - **Document Sources**: PDF and Obsidian vault paths
 - **Retriever Settings**: Search type, result count (k)
 - **Text Processing**: Chunk size and overlap for document splitting
+
 
 ## 🔄 Agent Workflow Details
 
@@ -239,6 +241,7 @@ Type 'exit', 'quit', or 'stop' to end the conversation
 - Final answer polishing and formatting
 - Context-aware response generation
 - Professional tone and accessibility
+
 
 ## Future Enhancements
 - [X] **GUI Interface**: Develop a web-based interface
