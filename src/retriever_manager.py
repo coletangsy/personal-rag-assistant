@@ -24,7 +24,7 @@ class RetrieverManager:
         """
         self.persist_directory = persist_directory
         self.collection_name = collection_name
-        self.embeddings = GoogleGenerativeAIEmbeddings(model=embedding_model)
+        self.embeddings = GoogleGenerativeAIEmbeddings(model=embedding_model, request_options={"timeout": 600})
         self.vectorstore = None
         self.retriever = None
         

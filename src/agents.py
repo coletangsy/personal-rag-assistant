@@ -78,12 +78,6 @@ def should_continue(state):
 def should_continue_retrieval(state):
     """
     Check if retrieval should continue based on ranker's evaluation and attempt count.
-    
-    Args:
-        state: The current conversation state containing ranker evaluation and attempt count
-    
-    Returns:
-        bool: True if retrieval should continue, False if maximum attempts reached or content is acceptable
     """
     # Use the stored ranker_evaluation from state instead of parsing from messages
     ranker_evaluation = state.get("ranker_evaluation", "")
@@ -99,8 +93,11 @@ def should_continue_retrieval(state):
     if ranker_evaluation:
         print(f"🔍 Ranker agent output: '{ranker_evaluation}'")
         
-        # Look for the boolean evaluation in the format "acceptable:true" or "acceptable:false"
-        match = re.search(r'acceptable:(true|false)', ranker_evaluation.lower())
+        # Clean the evaluation string and make it more robust
+        cleaned_evaluation = ranker_evaluation.strip().lower()
+        
+        # Look for the boolean evaluation with more flexible regex
+        match = re.search(r'acceptable\s*:\s*(true|false)', cleaned_evaluation)
         
         if match:
             is_acceptable = match.group(1) == 'true'
@@ -110,7 +107,10 @@ def should_continue_retrieval(state):
             # If the answer is acceptable, stop retrieval and proceed to assistant
             return not is_acceptable
         else:
-            print("⚠️  Could not find ranker evaluation pattern in output")
+            print(f"⚠️  Could not find ranker evaluation pattern in output")
+            print(f"⚠️  Raw output: '{ranker_evaluation}'")
+            print(f"⚠️  Cleaned output: '{cleaned_evaluation}'")
+            print(f"⚠️  Expected format: 'acceptable:true' or 'acceptable:false'")
     
     # Default behavior: if we can't parse the ranker's output, continue retrieval
     print("⚠️  Could not parse ranker evaluation, defaulting to continue retrieval")
@@ -138,25 +138,34 @@ def safety_validation_llm_bound(state, llm, config):
     
     # Create a safety evaluation prompt that uses the original question from state
     safety_prompt = f"""
-    You are a Safety Evaluation Agent. Your task is to determine if the following user question is safe and appropriate to answer.
+    You are a Safety Evaluation Agent using ReAct (Reasoning and Acting) methodology.
 
     USER'S QUESTION: {original_question}
 
-    EVALUATION CRITERIA:
-    - The question should not promote harm, violence, or illegal activities
-    - The question should not contain hate speech or offensive content
-    - The question should not request inappropriate or explicit content
-    - The question should be appropriate for a general audience
+    TASK: Determine if this question is safe and appropriate to answer.
 
-    INSTRUCTIONS:
-    1. Analyze the user's question above
-    2. Determine if it meets the safety criteria
-    3. Respond ONLY with: "safe:true" or "safe:false"
-    4. Do not include any additional text or explanation
+    Use this internal ReAct reasoning process (do not output this thinking):
 
-    Your response must be exactly one of these two options:
+    THOUGHT: I need to analyze this question for potential safety concerns systematically.
+
+    REASONING: Evaluate the question against these safety criteria:
+
+    1. HARM AND VIOLENCE: Check if the question promotes harmful activities, violence, or illegal actions
+    2. HATE SPEECH AND OFFENSIVE CONTENT: Assess for discriminatory language or offensive material targeting individuals or groups
+    3. INAPPROPRIATE CONTENT: Determine if it requests explicit, unethical, or inappropriate material
+    4. SENSITIVE PERSONAL INFORMATION: Verify it doesn't seek confidential data like financial information, credentials, API keys, or personal identification details
+
+    ACTION: Systematically evaluate each criterion and determine overall safety.
+
+    OBSERVATION: Note any safety concerns or confirm the question is appropriate.
+
+    CONCLUSION: Make final safety determination based on comprehensive analysis.
+
+    IMPORTANT: Do ALL your thinking internally. Your response must be EXACTLY one of these two options:
     - "safe:true" if the question is safe
     - "safe:false" if the question is unsafe
+
+    No additional text, explanation, or reasoning should be included in your output.
     """
     
     return call_llm(state, llm, safety_prompt)
@@ -164,37 +173,46 @@ def safety_validation_llm_bound(state, llm, config):
 
 def assistant_llm_bound(state, llm, config):
     """
-    Assistant agent that generates search queries using the original question from state.
-    
-    Args:
-        state: The current conversation state containing the original question
-        llm: The language model instance to invoke
-        config: Configuration parameters for the assistant agent
-    
-    Returns:
-        dict: Updated state containing the assistant's response message
+    Assistant agent that generates search queries using ReAct reasoning pattern.
     """
-    print("🤖 Assistant Agent: Generating search queries")
+    print("🤖 Assistant Agent: Generating search queries using ReAct pattern")
     
-    # Use the stored original_question from state
     original_question = state.get("original_question", "")
-    
     print(f"🤖 Assistant agent processing question: '{original_question}'")
     
-    # Create an assistant prompt that uses the original question from state
+    # ReAct-based assistant prompt
     assistant_prompt = f"""
-    You are an Assistant Agent. Your task is to help answer the user's question by generating appropriate search queries.
+    You are an Assistant Agent using ReAct (Reasoning and Acting) methodology.
 
     USER'S QUESTION: {original_question}
 
-    INSTRUCTIONS:
-    1. Analyze the user's question above
-    2. Generate search queries that would help retrieve relevant information
-    3. Use the available retrieval tools to search for information
-    4. If you need to search for information, use the retriever tool
-    5. If you can answer directly without searching, provide the answer
+    TASK: Help answer the user's question by determining the best approach to retrieve relevant information.
 
-    Remember to use the retrieval tools when needed to find the best information.
+    Use this internal ReAct reasoning process (do not output this thinking):
+
+    THOUGHT: I need to understand what the user is asking and determine the most effective strategy to help them.
+
+    REASONING: Analyze the question systematically:
+
+    1. QUESTION ANALYSIS: Identify the main topic, specific information needed, and user intent
+    2. KNOWLEDGE ASSESSMENT: Determine if I can answer directly from general knowledge or need to search for specific information
+    3. SEARCH STRATEGY: If retrieval is needed, identify key concepts, relevant keywords, and optimal search queries
+    4. ACTION PLANNING: Decide whether to use retrieval tools with specific queries or provide a direct answer
+
+    ACTION: Based on my analysis, execute the most appropriate approach - either use retrieval tools with well-crafted search queries or provide a direct comprehensive answer.
+
+    OBSERVATION: Evaluate the chosen approach and proceed with implementation.
+
+    CONCLUSION: Execute the planned action to best serve the user's information needs.
+
+    AVAILABLE TOOLS:
+    - retriever_tool: Use this to search for information in the knowledge base
+
+    IMPORTANT: Do ALL your thinking internally. Based on your analysis:
+    - If you need to search for information: Use the retriever_tool with appropriate search queries
+    - If you can answer directly without needing specific information: Provide a comprehensive answer
+
+    For this question about handling pain quotes, you should use the retriever_tool to search for relevant quotes and information.
     """
     
     return call_llm(state, llm, assistant_prompt)
@@ -251,47 +269,59 @@ def retrieve_data_bound(state, tools_dict: Dict[str, Any]):
 
 def ranker_llm_bound(state, llm, config):
     """
-    Ranker agent that evaluates the quality of retrieved content.
-    
-    Args:
-        state: The current conversation state containing retrieved content and original question
-        llm: The language model instance to invoke
-        config: Configuration parameters for the ranker agent
-    
-    Returns:
-        dict: Updated state containing the ranker evaluation message and stored evaluation
+    Ranker agent that evaluates retrieved content quality using ReAct reasoning pattern.
     """
-    print("🔍 Ranker Agent: Evaluating retrieved content quality")
+    print("🔍 Ranker Agent: Evaluating retrieved content quality using ReAct pattern")
     
-    # Use the stored retrieved_content from state
     retrieved_content = state.get("retrieved_content", "")
     original_question = state.get("original_question", "")
+    retrieval_attempts = state.get("retrieval_attempts", 0)
     
     print(f"🔍 Ranker agent evaluating content for question: '{original_question}'")
     print(f"🔍 Retrieved content length: {len(retrieved_content)}")
+    print(f"🔍 Current retrieval attempt: {retrieval_attempts}")
     
-    # Create a ranker prompt that uses the original question and retrieved content from state
+    # ReAct-based ranker prompt with stronger output constraints
     ranker_prompt = f"""
-    You are a Ranker Agent. Your task is to evaluate whether the retrieved information sufficiently answers the user's question.
+    You are a Ranker Agent using ReAct (Reasoning and Acting) methodology.
 
     USER'S ORIGINAL QUESTION: {original_question}
     RETRIEVED INFORMATION: {retrieved_content}
+    CURRENT RETRIEVAL ATTEMPT: {retrieval_attempts} / 5
 
-    EVALUATION CRITERIA:
-    - Does the retrieved information directly address the user's question?
-    - Is the information comprehensive enough to provide a complete answer?
-    - Is the information relevant and accurate?
-    - Are there any gaps in the information that need additional retrieval?
+    TASK: Evaluate whether the retrieved information is sufficient to answer the user's question.
 
-    INSTRUCTIONS:
-    1. Analyze the retrieved information against the user's question
-    2. Determine if the information is acceptable for answering the question
-    3. Respond ONLY with: "acceptable:true" or "acceptable:false"
-    4. Do not include any additional text or explanation
+    Use this internal ReAct reasoning process (do not output this thinking):
 
-    Your response must be exactly one of these two options:
-    - "acceptable:true" if the retrieved information is sufficient
-    - "acceptable:false" if more or better information is needed
+    THOUGHT: I need to assess the quality and relevance of the retrieved information against the user's question to determine if additional retrieval is needed.
+
+    REASONING: Systematically evaluate the retrieved content:
+
+    1. RELEVANCE ANALYSIS: Assess how directly the content addresses the user's question, covering key concepts and matching user intent
+    2. COMPLETENESS ASSESSMENT: Determine if there's enough information for a comprehensive answer and identify any critical gaps
+    3. QUALITY EVALUATION: Check for accuracy, specificity, clarity, and absence of contradictions in the retrieved information
+    4. RETRIEVAL CONTEXT: Consider current attempt number and whether continued searching would likely yield better results
+
+    ACTION: Based on comprehensive evaluation, decide whether the current information is sufficient or if additional retrieval attempts would improve the answer quality.
+
+    OBSERVATION: Analyze the overall sufficiency of available information considering both quality and retrieval attempt context.
+
+    CONCLUSION: Make final determination on whether to proceed with current information or continue searching.
+
+    CRITICAL OUTPUT REQUIREMENT:
+    Your response must be EXACTLY one of these two options (copy exactly, no extra spaces, no punctuation, no additional text):
+
+    acceptable:true
+
+    OR
+
+    acceptable:false
+
+    IMPORTANT: 
+    - Do ALL your thinking internally
+    - Output ONLY the exact text above
+    - No explanations, no reasoning, no additional words
+    - Just the exact format: acceptable:true or acceptable:false
     """
     
     result = call_llm(state, llm, ranker_prompt)
@@ -339,31 +369,52 @@ def pr_processing_llm_bound(state, llm, config):
     
     # Create a comprehensive prompt that includes all necessary context
     comprehensive_prompt = f"""
-    You are a Public Relations and Finalization Agent. Your task is to ensure the final answer is polished and accessible.
+    You are a Public Relations and Finalization Agent using ReAct (Reasoning and Acting) methodology.
 
     USER'S ORIGINAL QUESTION: {original_question}
     RETRIEVED INFORMATION: {retrieved_content}
     RANKER EVALUATION: {ranker_evaluation}
+    RETRIEVAL ATTEMPTS: {retrieval_attempts} / 5
     {max_attempts_context}
 
-    INSTRUCTIONS:
-    1. Based on the retrieved information above, provide a clear, comprehensive answer to the user's question
-    2. Structure the answer in a clear, easy-to-understand format
-    3. Use proper paragraphs and formatting
-    4. Include bullet points or numbered lists when appropriate
-    5. Ensure the language is suitable for a general audience
-    6. Make the answer concise but comprehensive
-    7. If citations or references are included, format them clearly
-    8. Ensure the tone is professional, helpful, and accessible
-    9. ALWAYS ensure the final output is in ENGLISH, regardless of the input language
-    10. If any content is not in English, translate it to clear, natural English
+    TASK: Create a polished, comprehensive final answer for the user.
 
-    CRITICAL: If there is no answer available or the content indicates that no information was found, provide a polite response such as:
-    - "I'm sorry, but I couldn't find any relevant information to answer your question in my knowledge base."
-    - "Unfortunately, I don't have enough information in my database to provide a complete answer to your question."
-    - "Based on my search, I wasn't able to find specific information that addresses your question."
+    Use this internal ReAct reasoning process (do not output this thinking):
 
-    Your output is the FINAL answer that will be shown to the user.
+    THOUGHT: I need to synthesize all available information into a clear, helpful response that directly addresses the user's question in the appropriate language.
+
+    REASONING: Analyze the complete context systematically:
+
+    1. LANGUAGE IDENTIFICATION: Determine the language of the original question to ensure response alignment
+    2. CONTENT ASSESSMENT: Evaluate the quality and quantity of retrieved information and determine what can be confidently answered
+    3. LANGUAGE PROCESSING: If retrieved content is in a different language than the question, prepare translations while maintaining accuracy and context
+    4. ANSWER STRATEGY: Choose appropriate response approach based on information availability - comprehensive answer, partial answer with limitations, or polite acknowledgment of insufficient information
+    5. FORMATTING STRATEGY: Structure content for maximum clarity using appropriate formatting, proper paragraphs, bullet points, and professional tone
+
+    ACTION: Synthesize information into final response following optimal strategy, language alignment, and formatting approach.
+
+    OBSERVATION: Review the planned response for completeness, accuracy, language consistency, and user-friendliness.
+
+    CONCLUSION: Deliver the final polished answer that best serves the user's needs given available information.
+
+    IMPORTANT: Do ALL your thinking internally. Your output should be the FINAL ANSWER that will be shown directly to the user. 
+
+    CRITICAL LANGUAGE REQUIREMENTS:
+    - Answer in the SAME LANGUAGE as the original question
+    - If the original question is in English, provide your answer in English
+    - If retrieved content is in a different language than the question, provide a translation in the question's language
+    - For non-English questions with non-English content: provide the answer in the question's language
+    - For English questions with non-English content: provide English translation and mention the original language if relevant
+
+    Create a response that:
+    - Directly addresses the user's question in the appropriate language
+    - Uses clear, professional language
+    - Includes proper formatting for readability
+    - Provides translations when content language differs from question language
+    - Acknowledges limitations honestly when necessary
+    - Maintains a helpful and accessible tone
+
+    If insufficient information is available, provide a polite response in the question's language explaining the limitation while offering what assistance you can.
     """
     
     return call_llm(state, llm, comprehensive_prompt)
