@@ -12,17 +12,25 @@ A sophisticated AI-powered personal assistant that combines Retrieval-Augmented 
 - **Professional Response Formatting**: Final answers are now polished with clear structure, proper formatting, and accessibility improvements
 - **Improved Error Handling**: More robust error recovery and user-friendly error messages
 
+**🌐 Web API & Containerization**
+- **FastAPI Web Interface**: Full REST API with session management and health checks
+- **Docker Support**: Complete containerization with optimized Dockerfile and docker-compose
+- **AWS Lambda Ready**: Mangum integration for serverless deployment
+- **Interactive Web Chat**: HTML chat interface for browser-based interaction
+
 **🔧 Better Project Organization**
-- **Cleaner Codebase**: Reorganized file structure for easier maintenance and future development
-- **Simplified Setup**: All configuration files remain easily accessible while source code is properly organized
+- **Modular Architecture**: Clean separation between CLI and API interfaces
+- **Enhanced Configuration**: Flexible config.json with multiple fallback paths
 - **Better Developer Experience**: Clear separation between application logic, agents, and data management
 
 **What This Means for You:**
 - More reliable and safe responses to your questions
 - Higher quality answers with better information filtering
 - Professional-looking responses with proper formatting
+- Multiple deployment options (CLI, Web API, Docker)
 - Easier to customize and extend the system
 - More stable and maintainable application
+
 
 **Getting Started with the Latest Version:**
 ```bash
@@ -37,15 +45,18 @@ uv run src/main.py
 - **Early Safety Validation**: Question safety evaluation before processing
 - **Content Quality Ranking**: Automatic evaluation of retrieved content quality
 - **Obsidian & PDF Integration**: Seamlessly indexes and retrieves information from Obsidian vaults and PDF documents
-- **Interactive Chat Interface**: User-friendly command-line interface with real-time feedback
+- **Interactive Interfaces**: Command-line interface and web API with real-time feedback
 
 ### 🛠️ Technical Features
 - **LangGraph Integration**: Multi-agent workflow orchestration
 - **Google Gemini Models**: State-of-the-art LLM and embedding models
+- **FastAPI Web Server**: Modern async web framework with automatic docs
+- **Docker Containerization**: Ready-to-deploy containerized application
 - **Modular Architecture**: Clean separation of concerns with dedicated modules
 - **Error Handling**: Robust error recovery and graceful degradation
 - **Progress Indicators**: Real-time status updates during processing
 - **UV Package Management**: Fast and reliable dependency management
+
 
 ## 📹 Demo
 
@@ -111,48 +122,54 @@ https://github.com/user-attachments/assets/02b3a7bf-f0b5-4d0b-bca6-fc1a02d70863
    ```
 
 5. **Run the application**
-   ```bash
-   uv run src/main.py
-   ```
+- **Option 1: Command Line Interface**
+    ```bash
+    uv run  -m src/rag_app/main.py
+    ```
+
+- **Option 2: Web API Server**
+    ```bash
+    uv run  src/app_api_handler.py
+    ```
+
+    Then visit: http://localhost:8000/docs for API documentation
+
+- **Option 3: Docker Container**
+    ```bash
+    # Build and run with Docker
+    docker build -t personal-rag-assistant .
+    docker run -p 8000:8000 -e GOOGLE_API_KEY=your_key personal-rag-assistant
+
+    # Or use docker-compose
+    docker-compose up
+    ```
 
 ## 📁 Project Structure
 
 ```
 personal-rag-assistant/
 ├── 📁 src/                    # Main source code
-│   ├── __init__.py
-│   ├── main.py               # Main application entry point
-│   ├── agents.py             # All agent functions (safety, assistant, ranker, PR)
-│   └── retriever_manager.py  # Vector database and document processing
-├── 📁 data/                  # Data storage
-│   ├── chroma.sqlite3        # Chroma vector database
-│   ├── vector_indices/       # Vector index files
-│   └── documents/            # Source documents (PDFs, etc.)
-├── .venv/                    # Python virtual environment (uv)
-├── .gitignore                # Git ignore rules
-├── .python-version           # Python version specification
+│   ├── rag_app/              # Core RAG application
+│   │   ├── main.py           # CLI application entry point
+│   │   ├── agents.py         # All agent functions (safety, assistant, ranker, PR)
+│   │   └── retriever_manager.py  # Vector database and document processing
+│   ├── app_api_handler.py    # FastAPI web server and API endpoints
+│   └── data/                 # Data storage (vector database, documents) ignored
+│       ├── chroma.sqlite3    # Chroma vector database
+│       ├── vector_indices/   # Vector index files
+│       └── harrypotter.pdf   # Sample PDF document
+├── chat_interface.html       # Web chat interface
 ├── config.json               # Application configuration
+├── Dockerfile                # Container configuration
+├── docker-compose.yml        # Multi-container setup
 ├── pyproject.toml            # Project dependencies (uv)
 ├── uv.lock                   # Dependency lock file
-├── README.md                 # Project documentation
-└── .env                      # Environment variables
+├── .env                      # Environment variables
+└── README.md                 # Project documentation
 ```
 
 ## 🎮 Usage
 
-### Starting the Assistant
-```bash
-uv run src/main.py
-```
-
-### Dependencies Management
-```bash
-# Add new dependency
-uv add package_name
-
-# Update dependencies
-uv sync
-```
 
 ### Interactive Session Example
 ```
@@ -224,9 +241,7 @@ Type 'exit', 'quit', or 'stop' to end the conversation
 - Professional tone and accessibility
 
 ## Future Enhancements
-- [ ] **Web Search Integration**: Add real-time web search capabilities
-- [ ] **GUI Interface**: Develop a web-based or desktop interface
+- [X] **GUI Interface**: Develop a web-based interface
 - [ ] **Advanced Caching**: Implement response caching for frequently asked questions
-- [ ] **Multi-modal Support**: Support for images and other media types
+- [ ] **Web Search Integration**: Add real-time web search capabilities
 - [ ] **Advanced Analytics**: Performance monitoring and usage analytics
-- [ ] **Plugin System**: Extensible architecture for custom agents and tools
