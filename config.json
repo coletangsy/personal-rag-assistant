@@ -4,7 +4,7 @@
         "temperature": 0
     },
     "vector_store": {
-        "persist_directory": "/Volumes/Kingston_External/Github/personal-rag-assistant/data/",
+        "persist_directory": "./src/data",
         "collection_name": "obsidian",
         "embedding_model": "models/gemini-embedding-001"
     },
