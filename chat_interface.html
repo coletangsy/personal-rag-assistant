@@ -85,19 +85,19 @@
         }
         #messageInput {
             flex: 1;
-            padding: 12px;
+            padding: 10px 12px; /* Adjusted padding to match smaller font */
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 16px; /* Keep input font size the same for usability */
+            font-size: 14px; /* Match conversation font size */
         }
         #sendButton {
-            padding: 12px 24px;
+            padding: 10px 20px; /* Adjusted padding to match smaller font */
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px; /* Keep button font size the same */
+            font-size: 14px; /* Match conversation font size */
             white-space: nowrap;
         }
         #sendButton:hover {
@@ -143,10 +143,16 @@
                 max-width: 85%;
             }
             #sendButton {
-                padding: 12px 16px;
+                padding: 10px 16px; /* Adjusted for mobile */
             }
             .chat-messages {
                 font-size: 13px; /* Slightly smaller on tablets */
+            }
+            #messageInput {
+                font-size: 13px; /* Match mobile conversation font size */
+            }
+            #sendButton {
+                font-size: 13px; /* Match mobile conversation font size */
             }
         }
 
@@ -165,6 +171,14 @@
             }
             .message-header {
                 font-size: 10px; /* Even smaller header on mobile */
+            }
+            #messageInput {
+                padding: 8px 10px; /* Smaller padding on mobile */
+                font-size: 13px; /* Match mobile conversation font size */
+            }
+            #sendButton {
+                padding: 8px 14px; /* Smaller padding on mobile */
+                font-size: 13px; /* Match mobile conversation font size */
             }
         }
     </style>
