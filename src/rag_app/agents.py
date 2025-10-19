@@ -334,21 +334,13 @@ def ranker_llm_bound(state, llm, config):
 def pr_processing_llm_bound(state, llm, config):
     """
     PR agent that processes the final answer with proper context.
-    
-    Args:
-        state: The current conversation state containing all retrieval context
-        llm: The language model instance to invoke
-        config: Configuration parameters for the PR agent
-    
-    Returns:
-        dict: Updated state containing the final polished answer for the user
     """
     print("🎯 PR Agent: Processing final answer")
     
     # Use the stored values from state instead of extracting from messages
     original_question = state.get("original_question", "Unknown")
-    retrieved_content = state.get("retrieved_content", "No information was retrieved")
-    ranker_evaluation = state.get("ranker_evaluation", "No evaluation provided")
+    retrieved_content = state.get("retrieved_content", "")
+    ranker_evaluation = state.get("ranker_evaluation", "")
     retrieval_attempts = state.get("retrieval_attempts", 0)
     
     print(f"📝 PR Agent Context:")
@@ -357,6 +349,61 @@ def pr_processing_llm_bound(state, llm, config):
     print(f"  - Ranker Evaluation: {ranker_evaluation}")
     print(f"  - Retrieval Attempts: {retrieval_attempts}")
     
+    # Check if this is a direct answer from Assistant (no retrieval was performed)
+    is_direct_answer = (retrieval_attempts == 0 and 
+                       not retrieved_content and
+                       not ranker_evaluation)
+    
+    if is_direct_answer:
+        print("🔄 Processing direct answer from Assistant (no retrieval performed)")
+        
+        # Get the Assistant's existing answer from messages
+        assistant_answer = ""
+        if state["messages"] and len(state["messages"]) > 0:
+            # Find the Assistant's response (should be the last message)
+            last_message = state["messages"][-1]
+            if hasattr(last_message, 'content'):
+                assistant_answer = last_message.content
+                print(f"📄 Assistant's existing answer: {assistant_answer[:200]}...")
+        
+        # For direct answers, we need to create a modified state that includes the Assistant's answer
+        # as the context for polishing, rather than the original user message
+        polishing_state = {
+            "messages": [
+                {"role": "user", "content": f"Original question: {original_question}\nAssistant's answer to polish: {assistant_answer}"}
+            ],
+            "original_question": original_question,
+            "retrieved_content": retrieved_content,
+            "ranker_evaluation": ranker_evaluation,
+            "retrieval_attempts": retrieval_attempts
+        }
+        
+        # For direct answers, we still want PR polishing but with the existing answer as context
+        direct_answer_prompt = f"""
+        You are a Public Relations and Finalization Agent using ReAct (Reasoning and Acting) methodology.
+
+        TASK: Take the Assistant's existing answer and polish it for clarity, professionalism, and user-friendliness. 
+        PRESERVE the core meaning and information while improving the presentation.
+
+        ASSISTANT'S ORIGINAL ANSWER TO POLISH: {assistant_answer}
+
+        USER'S ORIGINAL QUESTION: {original_question}
+
+        IMPORTANT INSTRUCTIONS:
+        - Your ONLY task is to POLISH the existing answer, not create a new one
+        - PRESERVE all key information and meaning from the Assistant's answer
+        - Improve clarity, formatting, grammar, and professional tone
+        - Answer in the SAME LANGUAGE as the original question
+        - Use proper paragraphs, bullet points, or other formatting as appropriate
+        - DO NOT add new information or change the fundamental meaning
+        - DO NOT ask follow-up questions or change the response type
+
+        Your output should be the POLISHED VERSION of the Assistant's answer, ready to be shown to the user.
+        """
+        
+        return call_llm(polishing_state, llm, direct_answer_prompt)
+    
+    # ... rest of existing PR agent logic for retrieval-based answers ...
     # Check if we reached the maximum attempts
     if retrieval_attempts >= 5:
         print("🔄 Adding maximum attempts reached context to PR agent")

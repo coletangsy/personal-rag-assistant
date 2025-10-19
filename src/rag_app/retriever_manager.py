@@ -39,13 +39,26 @@ class RetrieverManager:
         Returns:
             dict: Text splitter configuration with chunk_size and chunk_overlap
         """
-        try:
-            with open("config.json", 'r') as f:
-                config = json.load(f)
-            return config.get("text_splitter", {})
-        except (FileNotFoundError, json.JSONDecodeError):
-            # Default values if config file is not available
-            return {"chunk_size": 1000, "chunk_overlap": 200}
+        # Try multiple paths to find config.json
+        config_paths = [
+            "config.json",
+            "../config.json",
+            "../../config.json",
+            os.path.join(os.path.dirname(__file__), "..", "..", "config.json")
+        ]
+        
+        for config_path in config_paths:
+            try:
+                if os.path.exists(config_path):
+                    with open(config_path, 'r') as f:
+                        config = json.load(f)
+                    return config.get("text_splitter", {})
+            except (FileNotFoundError, json.JSONDecodeError):
+                continue
+        
+        # Default values if config file is not available
+        print("⚠️  Could not find config.json, using default text splitter values")
+        return {"chunk_size": 1000, "chunk_overlap": 200}
         
 
     def check_collection_exists(self) -> bool:
