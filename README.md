@@ -75,7 +75,7 @@ uv run src/main.py
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/coletangsy/personal-rag-assistant.git
    cd personal-rag-assistant
    ```
 
@@ -87,7 +87,7 @@ uv run src/main.py
 3. **Set up your environment**
    Create a `.env` file:
    ```env
-   GOOGLE_API_KEY=your_google_api_key_here
+   GOOGLE_API_KEY=<your_google_api_key_here>
    ```
 
 4. **Configure your knowledge sources**
@@ -137,7 +137,7 @@ uv run src/main.py
     ```bash
     # Build and run with Docker
     docker build -t personal-rag-assistant .
-    docker run -p 8000:8000 -e GOOGLE_API_KEY=your_key personal-rag-assistant
+    docker run -p 8000:8000 -e GOOGLE_API_KEY=<your_key> personal-rag-assistant
 
     # Or use docker-compose
     docker-compose up
