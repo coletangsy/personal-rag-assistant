@@ -11,8 +11,14 @@ wheels/
 .venv
 .env
 
-# database
+# database - commented out since we want it in Docker
 data/
 
 # config
 config.json
+
+# Docker environment (keep local .env private)
+.env.docker
+
+# Docker volumes
+docker-volumes/
