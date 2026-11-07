@@ -1,5 +1,7 @@
 # 🤖 Personal RAG Assistant
 
+Documentation: [working guide](AGENTS.md), [architecture](ARCHITECTURE.md) and [changelog](CHANGELOG.md).
+
 A sophisticated AI-powered personal assistant that combines Retrieval-Augmented Generation (RAG) with a multi-agent workflow to provide intelligent, context-aware responses based on personal knowledge bases including Obsidian vaults and PDF documents.
 
 
