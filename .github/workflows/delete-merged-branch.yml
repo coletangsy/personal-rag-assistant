@@ -1,0 +1,130 @@
+name: Delete merged branches
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions: {}
+
+jobs:
+  verify-cleanup:
+    name: Branch cleanup safety tests
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: node --test .github/tests/delete-merged-branch.node-test.mjs
+
+  delete-branch:
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Delete merged source branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          const { readFileSync, mkdtempSync, rmSync } = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const { join } = require('node:path');
+
+          async function main() {
+            const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+            const pr = event.pull_request;
+            const repository = process.env.GITHUB_REPOSITORY;
+            if (!pr?.merged || pr.head.repo?.full_name !== repository || !pr.head.sha) return;
+
+            const branch = pr.head.ref;
+            if (!branch || [event.repository.default_branch, pr.base.ref].includes(branch)) {
+              console.log('Keeping the default or base branch.');
+              return;
+            }
+
+            const request = (method, path) => fetch(`${process.env.GITHUB_API_URL}/repos/${repository}/${path}`, {
+              method,
+              redirect: 'error',
+              signal: AbortSignal.timeout(10000),
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                'X-GitHub-Api-Version': '2026-03-10',
+              },
+            });
+            const encoded = encodeURIComponent(branch);
+            const current = await request('GET', `branches/${encoded}`);
+            if (current.status === 404) return console.log('Source branch is already deleted.');
+            if (!current.ok) throw new Error(`Reading source branch failed: HTTP ${current.status}`);
+
+            const details = await current.json();
+            if (details.protected !== false || details.commit?.sha !== pr.head.sha) {
+              console.log('Keeping a protected branch or a branch with a changed tip.');
+              return;
+            }
+
+            // A new PR can still reference this SHA after these reads; the lease guards new commits.
+            for (const filter of [
+              `head=${encodeURIComponent(`${repository.split('/')[0]}:${branch}`)}`,
+              `base=${encoded}`,
+            ]) {
+              const open = await request('GET', `pulls?state=open&${filter}&per_page=1`);
+              if (!open.ok) throw new Error(`Checking open PRs failed: HTTP ${open.status}`);
+              if ((await open.json()).length) {
+                console.log('Keeping a source branch used by another open PR.');
+                return;
+              }
+            }
+
+            const directory = mkdtempSync(join(process.env.RUNNER_TEMP, 'branch-cleanup-'));
+            try {
+              execFileSync('git', ['init', '--bare', '--quiet', directory]);
+              // The lease makes deletion conditional on the merged SHA, including concurrent pushes.
+              execFileSync('git', [
+                'push', '--porcelain',
+                `--force-with-lease=refs/heads/${branch}:${pr.head.sha}`,
+                `${process.env.GITHUB_SERVER_URL}/${repository}.git`, `:refs/heads/${branch}`,
+              ], {
+                cwd: directory,
+                env: {
+                  ...process.env,
+                  GIT_TERMINAL_PROMPT: '0',
+                  GIT_CONFIG_COUNT: '2',
+                  GIT_CONFIG_KEY_0: `http.${process.env.GITHUB_SERVER_URL}/.extraheader`,
+                  GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${process.env.GH_TOKEN}`).toString('base64')}`,
+                  GIT_CONFIG_KEY_1: 'credential.helper',
+                  GIT_CONFIG_VALUE_1: '',
+                },
+                stdio: 'pipe',
+              });
+              console.log(`Source branch removed: ${branch}`);
+            } catch {
+              const latest = await request('GET', `branches/${encoded}`);
+              if (latest.status === 404) return console.log('Source branch is already deleted.');
+              if (!latest.ok) throw new Error(`Rechecking source branch failed: HTTP ${latest.status}`);
+              if ((await latest.json()).commit?.sha !== pr.head.sha) {
+                console.log('Keeping a branch that changed before deletion.');
+                return;
+              }
+              throw new Error('GitHub rejected source branch deletion.');
+            } finally {
+              rmSync(directory, { recursive: true, force: true });
+            }
+          }
+
+          main().catch(error => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
